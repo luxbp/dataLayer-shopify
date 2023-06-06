@@ -35,40 +35,46 @@
         window.__datalayerState.customer.addresses = {{ customer.addresses | json }};
     {% endif %}
 
-    dataLayer.push({
-        {% if shop.customer_accounts_enabled %}
-            {% if customer %}
-            'userId': {{ customer.id | json }},
-            'customerEmail': {{ customer.email | json }},
-            'logState': "Logged In",
-            'customerInfo': {
-                'firstName': {{ customer_address.first_name | json }},
-                'lastName': {{ customer_address.last_name | json }},
-                'address1': {{ customer_address.address1 | json }},
-                'address2': {{ customer_address.address2 | json }},
-                'street': {{ customer_address.street | json }},
-                'city': {{ customer_address.city | json }},
-                'province': {{ customer_address.province | json }},
-                'zip': {{ customer_address.zip | json }},
-                'country': {{ customer_address.country | json }},
-                'phone': {{ customer_address.phone | json }},
-                'totalOrders': {{ customer.orders_count | json }},
-                'totalSpent': {{ customer.total_spent | money_without_currency | remove: "," | json }}
-            },
-            {% else %}
-            'logState': "Logged Out",
-            {% endif %}
-        {% endif %}
-        'firstLog': firstLog,
-        'customerEmail': {{ customer.email | json }},
-        'timestamp': Date.now(),
-        {% if customer.orders_count > 1 %}
-            'customerType': 'Returning',
-            'customerTypeNumber': '0',
-        {% else %}
-            'customerType': 'New',
-            'customerTypeNumber': '1',
-        {% endif %}
+    let customerState = window.__datalayerState.customer && window.__datalayerState.customer.enabled
+        ? window.__datalayerState.customer : null;
+
+
+    if (!window.__datalayerState.isLoggedIn) {
+        localStorage.setItem("firstLog", "loggedOut");
+    } else {
+        if (localStorage.getItem("firstLog") === "loggedOut") {
+            localStorage.setItem("firstLog", "firstLog");
+        } else if(localStorage.getItem("firstLog") === "firstLog") {
+            localStorage.setItem("firstLog", "refresh");
+        }
+    }
+
+    let firstLog = localStorage.getItem("firstLog") === "firstLog";
+
+    let logState = {
+        'pageType': 'Log State',
+        'event': 'Log State',
+        userId: customerState ? customerState.id : null,
+        customerEmail: customerState ? customerState.email : null,
+        logState: window.__datalayerState.isLoggedIn ? "Logged In" : "Logged Out",
+        customerInfo: customerState ? {
+            'firstName': customerState.firstName,
+            'lastName': customerState.lastName,
+            'address1': customerState.default_address.address1,
+            'address2': customerState.default_address.address2,
+            'street': customerState.default_address.street,
+            'city': customerState.default_address.city,
+            'province': customerState.default_address.province,
+            'zip': customerState.default_address.zip,
+            'country': customerState.default_address.country,
+            'phone': customerState.default_address.phone,
+            'totalOrders': customerState.ordersCount,
+            'totalSpent': customerState.totalSpent,
+        } : null,
+        timestamp: Date.now(),
+        firstLog: firstLog,
+        customerType: customerState.ordersCount > 1 ? 'Returning' : 'New',
+        customerTypeNumber: customerState.ordersCount > 1 ? '0' : '1',
         'shippingInfo': {
             'fullName': {{ checkout.shipping_address.name | json }},
             'firstName': {{ checkout.shipping_address.first_name | json }},
@@ -97,9 +103,7 @@
         },
         'checkoutEmail': {{ checkout.email | json }},
         'currency': {{ shop.currency | json }},
-        'pageType': 'Log State',
-        'event': 'Log State'
-    })
+    }
 
     dataLayer.push(logState);
 
@@ -126,6 +130,19 @@
         };
         dataLayer.push(homepage);
     }
+
+    if (typeof Storage !== "undefined") {
+        if (!localStorage.getItem("landing_page")) {
+            dataLayer.push({
+                'pageType': 'Landing',
+                'event': 'Landing',
+                'page': document.location.pathname
+            });
+
+            localStorage.setItem("landing_page", document.location.pathname);
+        }
+    }
+
 
     document.addEventListener('page:loaded', function() {
         // Page has loaded and theme assets are ready
