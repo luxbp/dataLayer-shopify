@@ -35,7 +35,7 @@
         window.__datalayerState.customer.addresses = {{ customer.addresses | json }};
     {% endif %}
 
-    var logState = {
+    dataLayer.push({
         {% if shop.customer_accounts_enabled %}
             {% if customer %}
             'userId': {{ customer.id | json }},
@@ -62,7 +62,7 @@
         'firstLog': firstLog,
         'customerEmail': {{ customer.email | json }},
         'timestamp': Date.now(),
-        {% if customer.orders_count > 2 %}
+        {% if customer.orders_count > 1 %}
             'customerType': 'Returning',
             'customerTypeNumber': '0',
         {% else %}
@@ -99,7 +99,7 @@
         'currency': {{ shop.currency | json }},
         'pageType': 'Log State',
         'event': 'Log State'
-    }
+    })
 
     dataLayer.push(logState);
 
@@ -231,7 +231,7 @@
     document.addEventListener('variant:change', function(evt) {
         if (!evt.detail.product) return
         // selected_or_first_available_variant
-        console.log(evt.detail.variant);
+        console.log(evt.detail.product);
         dataLayer.push(evt.detail.product.sku, {
             'pageType': 'Product',
             'event': 'Product'
@@ -276,11 +276,21 @@
     });
 
     document.addEventListener('search:query', function(evt) {
+        if (!evt.detail.query) return
+
         dataLayer.push({
             'searchTerm': evt.detail.query,
             'pageType': "Search",
             'event': "Search"
         })
+    });
+
+    document.addEventListener('cta:clicked', function(evt) {
+        dataLayer.push({'event': "CTA"})
+    });
+
+    document.addEventListener('promo:subscribe', function(evt) {
+        dataLayer.push({'event': 'Promo Subscription'});
     });
 
 
@@ -356,6 +366,7 @@
             }
         }
     }
+
 
     dataLayer.push({
         'event': 'DataLayer Loaded'
