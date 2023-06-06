@@ -8,15 +8,25 @@
         template: "{{ template }}",
     }
 
-    function pullCart() {
-        fetch('/cart.js')
-            .then(response => response.json())
-            .then(function (response) {
-                window.__datalayerState.cart = response;
-            });
-    }
-
-    pullCart()
+    fetch('/cart.js')
+        .then(response => response.json())
+        .then(function (response) {
+            window.__datalayerState.cart = response;
+            dataLayer.push({
+                'products': response.items.map(item => {
+                    return {
+                        'id': item.id,
+                        'sku': item.sku,
+                        'variant': item.variant_id,
+                        'name': item.title,
+                        'price': (item.price / 100),
+                        'quantity': item.quantity
+                    }
+                }),
+                'pageType': 'Cart',
+                'event': 'Cart'
+            })
+        });
 
     {% if customer %}
         window.__datalayerState.isLoggedIn = true
