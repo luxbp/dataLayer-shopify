@@ -1,0 +1,364 @@
+<script>
+    window.dataLayer = window.dataLayer || [];  // init data layer if doesn't already exist
+    dataLayer.push({'event': 'Begin DataLayer'}); // begin datalayer
+
+    window.__datalayerState = {
+        isLoggedIn: false,
+        currency: "{{ shop.currency }}",
+        template: "{{ template }}",
+    }
+
+    function pullCart() {
+        fetch('/cart.js')
+            .then(response => response.json())
+            .then(function (response) {
+                window.__datalayerState.cart = response;
+            });
+    }
+
+    pullCart()
+
+    {% if customer %}
+        window.__datalayerState.isLoggedIn = true
+        window.__datalayerState.customer = {}
+        window.__datalayerState.customer.id = {{ customer.id | json }};
+        window.__datalayerState.customer.email = "{{ customer.email }}";
+        window.__datalayerState.customer.firstName = "{{ customer.first_name }}";
+        window.__datalayerState.customer.lastName = "{{ customer.last_name }}";
+        window.__datalayerState.customer.ordersCount = {{ customer.orders_count }};
+        window.__datalayerState.customer.totalSpent = {{ customer.total_spent }};
+        window.__datalayerState.customer.tags = {{ customer.tags | json }};
+        window.__datalayerState.customer.acceptsMarketing = {{ customer.accepts_marketing | json }};
+        window.__datalayerState.customer.createdAt = "{{ customer.created_at }}";
+        window.__datalayerState.customer.enabled = {{ shop.customer_accounts_enabled | json }};
+        window.__datalayerState.customer.default_address = {{ customer.default_address | json }};
+        window.__datalayerState.customer.addresses = {{ customer.addresses | json }};
+    {% endif %}
+
+    var logState = {
+        {% if shop.customer_accounts_enabled %}
+            {% if customer %}
+            'userId': {{ customer.id | json }},
+            'customerEmail': {{ customer.email | json }},
+            'logState': "Logged In",
+            'customerInfo': {
+                'firstName': {{ customer_address.first_name | json }},
+                'lastName': {{ customer_address.last_name | json }},
+                'address1': {{ customer_address.address1 | json }},
+                'address2': {{ customer_address.address2 | json }},
+                'street': {{ customer_address.street | json }},
+                'city': {{ customer_address.city | json }},
+                'province': {{ customer_address.province | json }},
+                'zip': {{ customer_address.zip | json }},
+                'country': {{ customer_address.country | json }},
+                'phone': {{ customer_address.phone | json }},
+                'totalOrders': {{ customer.orders_count | json }},
+                'totalSpent': {{ customer.total_spent | money_without_currency | remove: "," | json }}
+            },
+            {% else %}
+            'logState': "Logged Out",
+            {% endif %}
+        {% endif %}
+        'firstLog': firstLog,
+        'customerEmail': {{ customer.email | json }},
+        'timestamp': Date.now(),
+        {% if customer.orders_count > 2 %}
+            'customerType': 'Returning',
+            'customerTypeNumber': '0',
+        {% else %}
+            'customerType': 'New',
+            'customerTypeNumber': '1',
+        {% endif %}
+        'shippingInfo': {
+            'fullName': {{ checkout.shipping_address.name | json }},
+            'firstName': {{ checkout.shipping_address.first_name | json }},
+            'lastName': {{ checkout.shipping_address.last_name | json }},
+            'address1': {{ checkout.shipping_address.address1 | json }},
+            'address2': {{ checkout.shipping_address.address2 | json }},
+            'street': {{ checkout.shipping_address.street | json }},
+            'city': {{ checkout.shipping_address.city | json }},
+            'province': {{ checkout.shipping_address.province | json }},
+            'zip': {{ checkout.shipping_address.zip | json }},
+            'country': {{ checkout.shipping_address.country | json }},
+            'phone': {{ checkout.shipping_address.phone | json }},
+        },
+        'billingInfo': {
+            'fullName': {{ checkout.billing_address.name | json }},
+            'firstName': {{ checkout.billing_address.first_name | json }},
+            'lastName': {{ checkout.billing_address.last_name | json }},
+            'address1': {{ checkout.billing_address.address1 | json }},
+            'address2': {{ checkout.billing_address.address2 | json }},
+            'street': {{ checkout.billing_address.street | json }},
+            'city': {{ checkout.billing_address.city | json }},
+            'province': {{ checkout.billing_address.province | json }},
+            'zip': {{ checkout.billing_address.zip | json }},
+            'country': {{ checkout.billing_address.country | json }},
+            'phone': {{ checkout.billing_address.phone | json }},
+        },
+        'checkoutEmail': {{ checkout.email | json }},
+        'currency': {{ shop.currency | json }},
+        'pageType': 'Log State',
+        'event': 'Log State'
+    }
+
+    dataLayer.push(logState);
+
+    {% if template contains 'collection' %}
+        window.__datalayerState.collection = {{ collection | json }};
+    {% endif %}
+
+    {% if template contains 'article' %}
+        window.__datalayerState.article = {{ article | json }};
+    {% endif %}
+
+    {% if template contains 'cart' %}
+        window.__datalayerState.cart = {{ cart | json }};
+    {% endif %}
+
+    {% if template contains 'product' %}
+        window.__datalayerState.product = {{ product | json }};
+    {% endif %}
+
+    if (document.location.pathname === "/") {
+        var homepage = {
+            'pageType': 'Homepage',
+            'event': 'Homepage'
+        };
+        dataLayer.push(homepage);
+    }
+
+    document.addEventListener('page:loaded', function() {
+        // Page has loaded and theme assets are ready
+    });
+
+    document.addEventListener('page:changed', function() {
+        // Page has changed and theme assets are ready
+    });
+
+    document.addEventListener('cart:view', function(evt) {
+        if (!evt.detail.cart) return
+
+        console.log(evt.detail.cart);
+        dataLayer.push({
+            'products': evt.detail.cart.items.map(item => {
+                return {
+                    'id': item.id,
+                    'sku': item.sku,
+                    'variant': item.variant_id,
+                    'name': item.title,
+                    'price': (item.price / 100),
+                    'quantity': item.quantity
+                }
+            }),
+            'pageType': 'Cart',
+            'event': 'Cart'
+        })
+    });
+
+    document.addEventListener('cart:updated', function(evt) {
+        if (!evt.detail.cart) return
+
+        console.log(evt.detail.cart);
+
+        dataLayer.push({
+            'products': evt.detail.cart.items.map(item => {
+                return {
+                    'id': item.id,
+                    'sku': item.sku,
+                    'variant': item.variant_id,
+                    'name': item.title,
+                    'price': (item.price / 100),
+                    'quantity': item.quantity
+                }
+            }),
+            'pageType': 'Cart',
+            'event': 'Cart'
+        })
+    });
+
+    document.addEventListener('cart:item:added', function(evt) {
+        if (!evt.detail.item) return
+
+        dataLayer.push({
+            'products': [evt.detail.item].map(item => {
+                return {
+                    'id': item.id,
+                    'sku': item.sku,
+                    'variant': item.variant_id,
+                    'name': item.title,
+                    'price': (item.price / 100),
+                    'quantity': item.quantity
+                }
+            }),
+            'pageType': 'Cart',
+            'event': 'Cart'
+        })
+
+        console.log(evt.detail.item);
+    });
+
+    document.addEventListener('cart:item:removed', function(evt) {
+        if (!evt.detail.item) return
+
+        console.log(evt.detail.item);
+
+        dataLayer.push({
+            'products': [evt.detail.item].map(item => {
+                return {
+                    'id': item.id,
+                    'sku': item.sku,
+                    'variant': item.variant_id,
+                    'name': item.title,
+                    'price': (item.price / 100),
+                    'quantity': item.quantity
+                }
+            }),
+            'pageType': 'Remove from Cart',
+            'event': 'Remove from Cart'
+        })
+    });
+
+    document.addEventListener('product:view', function(evt) {
+        if (!evt.detail.product) return
+        // selected_or_first_available_variant
+        console.log(evt.detail.product);
+        dataLayer.push(evt.detail.product.sku, {
+            'pageType': 'Product',
+            'event': 'Product'
+        });
+    });
+
+    document.addEventListener('variant:change', function(evt) {
+        if (!evt.detail.product) return
+        // selected_or_first_available_variant
+        console.log(evt.detail.variant);
+        dataLayer.push(evt.detail.product.sku, {
+            'pageType': 'Product',
+            'event': 'Product'
+        });
+    });
+
+    document.addEventListener('newsletter:subscribed', function(evt) {
+        dataLayer.push({'event': 'Newsletter Subscription'});
+    });
+
+    document.addEventListener('newsletter:unsubscribed', function(evt) {
+        dataLayer.push({'event': 'Newsletter Unsubscribe'});
+    });
+
+    document.addEventListener('wishlist:add', function(evt) {
+        if (!evt.detail.product) return
+
+        console.log(evt.detail.product);
+        dataLayer.push({
+            'products': {
+                'id': evt.detail.product.id,
+                'name': evt.detail.product.title,
+            },
+            'pageType': 'Wishlist',
+            'event': 'Wishlist'
+        });
+    });
+
+    document.addEventListener('wishlist:remove', function(evt) {
+        if (!evt.detail.product) return
+
+        console.log(evt.detail.product);
+
+        dataLayer.push({
+            'products': {
+                'id': evt.detail.product.id,
+                'name': evt.detail.product.title,
+            },
+            'pageType': 'Wishlist',
+            'event': 'Wishlist Delete Product'
+        });
+    });
+
+    document.addEventListener('search:query', function(evt) {
+        dataLayer.push({
+            'searchTerm': evt.detail.query,
+            'pageType': "Search",
+            'event': "Search"
+        })
+    });
+
+
+    if (Shopify.Checkout) {
+        transactionProducts = [];
+
+        {% for line_item in checkout.line_items %}
+
+        transactionProducts.push({
+            'id': {{ line_item.product_id | json }},
+            'sku': {{ line_item.sku | json }},
+            'variantId': {{ line_item.variant_id | json }},
+            'name': {{ line_item.title | json }},
+            'productType': {{ line_item.product.type | json }},
+            'price': {{ line_item.price | money_without_currency | remove: "," | json }},
+            'quantity': {{ line_item.quantity | json }},
+            'description': {{ line_item.product.description | strip_newlines | strip_html | json }},
+            'imageURL': "https:{{ line_item.product.featured_image.src | img_url: 'grande' }}",
+            'productURL': '{{ shop.secure_url }}{{ line_item.product.url }}'
+        });
+
+        {% endfor %}
+        transactionData = {
+            'transactionNumber': {{ checkout.order_id | json }},
+            'transactionId': {{ checkout.order_number | json }},
+            'transactionAffiliation': {{ shop.name | json }},
+            'transactionTotal': {{ checkout.total_price | money_without_currency | remove: "," | json }},
+            'transactionTax': {{ checkout.tax_price | money_without_currency | remove: "," | json }},
+            'transactionShipping': {{ checkout.shipping_price | money_without_currency | remove: "," | json }},
+            'transactionSubtotal': {{ checkout.subtotal_price | money_without_currency | remove: "," | json }},
+            {% for discount in checkout.discounts %}
+            'promoCode': {{ discount.code | json }},
+            'discount': {{ discount.amount | money_without_currency | json }},
+            {% endfor %}
+
+            'products': transactionProducts
+        };
+
+        if (Shopify.Checkout.step) {
+            if (Shopify.Checkout.step.length > 0) {
+                if (Shopify.Checkout.step === 'contact_information') {
+                    dataLayer.push(transactionData, {
+                        'event': 'Customer Information',
+                        'pageType': 'Customer Information'
+                    });
+
+                    console.log("Customer Information - Transaction Data" + " :" + JSON.stringify(transactionData, null, " "));
+                }
+
+                if (Shopify.Checkout.step === 'shipping_method') {
+                    dataLayer.push(transactionData, {
+                        'event': 'Shipping Information',
+                        'pageType': 'Shipping Information'
+                    });
+                    console.log("Shipping - Transaction Data" + " :" + JSON.stringify(transactionData, null, " "));
+                }
+
+                if (Shopify.Checkout.step === "payment_method") {
+                    dataLayer.push(transactionData, {
+                        'event': 'Add Payment Info',
+                        'pageType': 'Add Payment Info'
+                    });
+                    console.log("Payment - Transaction Data" + " :" + JSON.stringify(transactionData, null, " "));
+                }
+            }
+
+            /** DATALAYER: Transaction */
+            if (Shopify.Checkout.page === "thank_you") {
+                dataLayer.push(transactionData, {
+                    'pageType': 'Transaction',
+                    'event': 'Transaction'
+                });
+            }
+        }
+    }
+
+    dataLayer.push({
+        'event': 'DataLayer Loaded'
+    });
+
+</script>
